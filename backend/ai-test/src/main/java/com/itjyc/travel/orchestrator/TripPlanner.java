@@ -9,7 +9,6 @@ import com.itjyc.travel.tool.MapTool;
 import com.itjyc.travel.tool.WeatherTool;
 import com.itjyc.travel.util.DateUtil;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -48,7 +47,7 @@ public class TripPlanner {
             最终输出必须是符合要求的 JSON，不要用 markdown 代码块包裹。
             """;
 
-    private final ChatClient chatClient;
+    private final ChatClient planningChatClient;
     private final MapTool mapTool;
     private final WeatherTool weatherTool;
     private final ObjectMapper objectMapper;
@@ -74,11 +73,11 @@ public class TripPlanner {
     /** 校验用的相邻点对：day → from 景点 → to 景点。day 用包装类型，避免 LLM 漏字段时拆箱 NPE。 */
     private record RoutePair(Integer day, String from, String to, String city) {}
 
-    public TripPlanner(@Qualifier("chatClient") ChatClient chatClient, MapTool mapTool, WeatherTool weatherTool, ObjectMapper objectMapper,
+    public TripPlanner(@Qualifier("planningChatClient") ChatClient planningChatClient, MapTool mapTool, WeatherTool weatherTool, ObjectMapper objectMapper,
                        @Value("${trip.pending-ttl-min:30}") long pendingTtlMin,
                        @Value("${trip.route-threshold-min:90}") int routeThresholdMin,
                        @Value("${trip.amap-pool-size:8}") int amapPoolSize) {
-        this.chatClient = chatClient;
+        this.planningChatClient = planningChatClient;
         this.mapTool = mapTool;
         this.weatherTool = weatherTool;
         this.objectMapper = objectMapper;
@@ -108,7 +107,7 @@ public class TripPlanner {
         // 清理超时未完成的需求（默认 30 分钟视为放弃）
         pending.entrySet().removeIf(e -> now - e.getValue().ts() > pendingTtlMs);
 
-        TripRequest extracted = extractRequest(message, conversationId);
+        TripRequest extracted = extractRequest(message);
         PendingEntry existing = pending.get(conversationId);
 
         // 抽取失败（LLM 返回非法 JSON / 网络抖动）：不打断，保留已有累积继续追问
@@ -131,13 +130,11 @@ public class TripPlanner {
     }
 
     /** ② 从用户输入抽取旅行需求。 */
-    private TripRequest extractRequest(String message, String conversationId) {
+    private TripRequest extractRequest(String message) {
         try {
-            return chatClient.prompt()
+            return planningChatClient.prompt()
                     .system("你是旅行需求分析助手。从用户的话里抽取目的地、天数、人数、预算、偏好、节奏等字段。直接输出 JSON，不要用 markdown 代码块。\n今天是 " + DateUtil.today() + "。")
                     .user(message)
-                    // 独立 memoryId：抽取的中间 JSON 不污染主会话历史（生成/修正也不该看到这些）
-                    .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, conversationId + ":extract"))
                     .call()
                     .entity(TripRequest.class);
         } catch (Exception e) {
@@ -158,7 +155,7 @@ public class TripPlanner {
 
     /** ④ 生成行程草稿（结构化输出，LLM 不调用工具）。 */
     private Itinerary generate(TripRequest request) {
-        return chatClient.prompt()
+        return planningChatClient.prompt()
                 .system(PLANNER_SYSTEM + "\n今天是 " + DateUtil.today() + "。")
                 .user("旅行需求：" + request)
                 .call()
@@ -212,7 +209,7 @@ public class TripPlanner {
 
     /** ⑥ 根据校验问题修正行程。 */
     private Itinerary revise(Itinerary draft, List<ValidationIssue> issues) {
-        return chatClient.prompt()
+        return planningChatClient.prompt()
                 .system(PLANNER_SYSTEM + "\n今天是 " + DateUtil.today() + "。")
                 .user("原行程（JSON）：" + toJson(draft) + "\n\n请修正以下问题后重新输出行程：\n" + toJson(issues))
                 .call()

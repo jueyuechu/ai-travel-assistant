@@ -487,6 +487,20 @@ SyncMcpElicitationProvider : No elicitation methods found
 
 ---
 
+## 22. 去掉 .advisors() ≠ 不带记忆(conversationId 必填报错)
+
+**现象**:规划接口报 `java.lang.IllegalArgumentException: conversationId cannot be null`,堆栈在 `TripPlanner.generate()` 的 `.entity()` → `MessageChatMemoryAdvisor.before()`。
+
+**根因**:`chatClient` bean 的 `defaultAdvisors` 挂了 `MessageChatMemoryAdvisor`,它**强制 conversationId 非 null**(`Assert.notNull`)。之前「问题1修复」给 generate/revise 去掉了 `.advisors(a -> a.param(CONVERSATION_ID, ...))`,以为这样就不带记忆了——但 `defaultAdvisors` 还在,调用时拿不到 conversationId 就抛异常。
+
+**解决**:给规划流水线单独建一个**不挂记忆的 ChatClient**(`planningChatClient = builder.build()`,无 `defaultAdvisors`),抽取/生成/修正全用它;主会话记忆仍由 `chatClient` 承担。
+
+**经验**:
+- `.advisors(...)` 只能**追加** advisor,不能移除 `defaultAdvisors`;想「不带记忆」必须用**不挂 `MessageChatMemoryAdvisor` 的独立 ChatClient**。
+- 去掉显式 advisor ≠ 去掉 defaultAdvisors,两者是叠加关系。
+
+---
+
 ## 通用经验总结
 
 1. **Spring Boot 4 的两大坑**:Jackson 3(包名变了)+ 基本类型 null 报错,写数据接收/结构化输出时先想到这两点。

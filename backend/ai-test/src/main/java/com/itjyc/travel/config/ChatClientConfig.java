@@ -15,7 +15,8 @@ import org.springframework.context.annotation.Configuration;
 /**
  * 配置 ChatClient。按意图拆分工具集，避免「工具全挂」导致 agentic 循环不收敛。
  *
- * - chatClient         基础：仅会话记忆，不挂工具（行程呈现/建议、规划结构化输出）
+ * - chatClient         基础：仅会话记忆，不挂工具（行程呈现/建议）
+ * - planningChatClient 规划内部（抽取/生成/修正）：无记忆，避免内部 JSON 污染主会话
  * - realtimeChatClient 实况：天气 + 汇率 + 搜索沉淀（天气/汇率/资讯）
  * - qaChatClient       问答：搜索沉淀 + 地图（攻略/地点）
  *
@@ -40,6 +41,12 @@ public class ChatClientConfig {
         return builder
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
                 .build();
+    }
+
+    /** 规划内部 LLM 调用（抽取/生成/修正）专用：不挂记忆，避免内部 JSON 污染主会话，也避开 MessageChatMemoryAdvisor 强制的 conversationId 必填。 */
+    @Bean
+    ChatClient planningChatClient(ChatClient.Builder builder) {
+        return builder.build();
     }
 
     /** 实况查询：天气 + 汇率 + 联网搜索。不挂地图，避免查天气时误触地图/路线。 */
