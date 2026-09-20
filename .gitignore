@@ -1,0 +1,25 @@
+# ===== Java / Maven =====
+target/
+*.class
+*.jar
+*.war
+!**/.mvn/wrapper/maven-wrapper.jar
+
+# ===== IDE =====
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# ===== Node / 前端 =====
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+
+# ===== OS / 其他 =====
+.DS_Store
+Thumbs.db
+*.log

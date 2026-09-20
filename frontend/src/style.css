@@ -1,0 +1,990 @@
+:root {
+    /* 简约大气：暖白基底 + 单一深松绿强调色（非 AI 紫蓝，非纯黑） */
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --surface-alt: #f1efe9;
+    --text: #1c1c19;
+    --text-secondary: #6f6e68;
+    --text-tertiary: #a3a19a;
+    --accent: #2f5d50;
+    --accent-hover: #274d42;
+    --accent-soft: #e6ece9;
+    --border: #e8e6e0;
+    --radius: 16px;
+    --radius-sm: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #161613;
+        --surface: #1f1f1c;
+        --surface-alt: #272724;
+        --text: #efece4;
+        --text-secondary: #a6a49c;
+        --text-tertiary: #6f6e68;
+        --accent: #7ba996;
+        --accent-hover: #8fbbaa;
+        --accent-soft: #26332e;
+        --border: #2e2e2a;
+    }
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+}
+
+body {
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+.chat-container {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 头部：极简，一行 */
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.chat-header .title {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.new-chat-btn {
+    padding: 7px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: color .18s ease, border-color .18s ease;
+}
+
+.new-chat-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.new-chat-btn:active {
+    transform: scale(0.98);
+}
+
+/* 消息区：大量留白 */
+.messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 空状态：品牌标识 + 标题 + 快捷问题 */
+.welcome {
+    text-align: center;
+    color: var(--text-secondary);
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    line-height: 1.6;
+    padding: 20px 0;
+}
+
+.brand-logo {
+    width: 56px;
+    height: 56px;
+    color: var(--accent);
+}
+
+.welcome-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.welcome-sub {
+    font-size: 14px;
+    color: var(--text-secondary);
+    letter-spacing: .02em;
+}
+
+.quick-asks {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+    max-width: 560px;
+}
+
+.quick-chip {
+    padding: 9px 16px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color .18s ease, color .18s ease, background-color .18s ease, transform .1s ease;
+}
+
+.quick-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.quick-chip:active {
+    transform: scale(0.97);
+}
+
+/* 消息气泡：统一柔圆角，无重阴影 */
+.message {
+    max-width: min(80%, 760px);
+    padding: 13px 18px;
+    border-radius: var(--radius);
+    line-height: 1.75;
+    font-size: 15px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    animation: message-in .28s cubic-bezier(.16, 1, .3, 1);
+}
+
+.message.user {
+    align-self: flex-end;
+    background: var(--accent);
+    color: #fff;
+    border-bottom-right-radius: 6px;
+}
+
+.message.assistant {
+    align-self: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 6px;
+}
+
+/* 助手消息里的 markdown 内容 */
+.message.assistant h1, .message.assistant h2, .message.assistant h3 {
+    margin: 10px 0 6px;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.message.assistant h1:first-child,
+.message.assistant h2:first-child,
+.message.assistant h3:first-child,
+.message.assistant p:first-child {
+    margin-top: 0;
+}
+
+.message.assistant p {
+    margin: 5px 0;
+}
+
+.message.assistant ul, .message.assistant ol {
+    margin: 6px 0 6px 22px;
+}
+
+.message.assistant table {
+    border-collapse: collapse;
+    margin: 10px 0;
+    font-size: 14px;
+    width: 100%;
+    max-width: 100%;
+    display: block;
+    overflow-x: auto;
+}
+
+.message.assistant th, .message.assistant td {
+    padding: 9px 14px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.message.assistant th {
+    background: var(--accent-soft);
+    color: var(--text);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+}
+
+.message.assistant td {
+    border-bottom: 1px solid var(--border);
+}
+
+.message.assistant tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.message.assistant tbody tr:nth-child(even) {
+    background: var(--surface-alt);
+}
+
+.message.assistant code {
+    background: var(--surface-alt);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.message.assistant strong {
+    font-weight: 600;
+}
+
+/* 输入区 */
+.input-area {
+    display: flex;
+    gap: 10px;
+    padding: 14px 20px;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.input-area textarea {
+    flex: 1;
+    resize: none;
+    padding: 12px 20px;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: var(--surface-alt);
+    color: var(--text);
+    font-size: 16px;
+    font-family: inherit;
+    line-height: 1.5;
+    max-height: 120px;
+    outline: none;
+    transition: border-color .18s ease, background-color .18s ease, box-shadow .18s ease;
+}
+
+.input-area textarea::placeholder {
+    color: var(--text-tertiary);
+}
+
+.input-area textarea:focus {
+    border-color: var(--accent);
+    background: var(--surface);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.send-btn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color .18s ease, transform .1s ease;
+}
+
+.send-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.send-btn:hover {
+    background: var(--accent-hover);
+}
+
+.send-btn:active {
+    transform: scale(0.94);
+}
+
+.send-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* 发送中的三点动画 */
+.send-dots {
+    display: flex;
+    gap: 3px;
+}
+
+.send-dots span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #fff;
+    animation: think-blink 1.2s ease-in-out infinite;
+}
+
+.send-dots span:nth-child(2) { animation-delay: .2s; }
+.send-dots span:nth-child(3) { animation-delay: .4s; }
+
+/* 天气卡片 */
+.weather-card {
+    width: 100%;
+}
+
+.weather-title {
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+}
+
+.weather-row {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1.6fr 1.2fr;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    align-items: center;
+}
+
+.weather-row:last-child {
+    border-bottom: none;
+}
+
+.weather-row .w-date {
+    color: var(--text-secondary);
+}
+
+.weather-row .w-weather {
+    font-weight: 500;
+}
+
+.weather-row .w-temp {
+    font-weight: 500;
+}
+
+.weather-row .w-wind {
+    color: var(--text-secondary);
+}
+
+@media (max-width: 480px) {
+    .weather-row {
+        grid-template-columns: 1fr 1fr;
+        row-gap: 4px;
+    }
+}
+
+/* 消息进入动效 */
+@keyframes message-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 思考中动画：三个点依次跳动 */
+.message.thinking {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 18px;
+}
+
+.thinking-dots {
+    display: flex;
+    gap: 4px;
+}
+
+.thinking .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--text-tertiary);
+    animation: think-blink 1.2s ease-in-out infinite;
+}
+
+.thinking .dot:nth-child(2) { animation-delay: .2s; }
+.thinking .dot:nth-child(3) { animation-delay: .4s; }
+
+.thinking-text {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+@keyframes think-blink {
+    0%, 80%, 100% { opacity: .25; transform: translateY(0); }
+    40% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* 流式输出中的闪烁光标：表示"还在生成" */
+.typing-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 1em;
+    margin-left: 4px;
+    background: var(--accent);
+    vertical-align: middle;
+    animation: cursor-blink 1s step-end infinite;
+}
+
+@keyframes cursor-blink {
+    50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .message { animation: none; }
+    .new-chat-btn, .send-btn, .input-area textarea { transition: none; }
+}
+
+/* ============ 响应式 ============ */
+
+@media (max-width: 768px) {
+    .chat-header {
+        padding: 14px 18px;
+    }
+    .chat-header .title {
+        font-size: 16px;
+    }
+    .messages {
+        padding: 20px 14px;
+        gap: 14px;
+    }
+    .message {
+        max-width: 88%;
+    }
+    .input-area {
+        padding: 10px 12px;
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+        gap: 8px;
+    }
+    .send-btn {
+        padding: 0 18px;
+    }
+}
+
+@media (max-width: 480px) {
+    .message {
+        max-width: 92%;
+        padding: 11px 15px;
+    }
+    .message.assistant table {
+        font-size: 12px;
+    }
+    .welcome {
+        margin-top: 10vh;
+        font-size: 14px;
+    }
+}
+
+/* ============ 行程卡片 ============ */
+.itinerary {
+    align-self: flex-start;
+    width: min(100%, 760px);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.itinerary-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 2px 4px;
+}
+
+.itinerary-dest {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.itinerary-meta {
+    color: var(--text-secondary);
+    font-size: 14px;
+    display: flex;
+    gap: 12px;
+    white-space: nowrap;
+    align-items: center;
+}
+
+.map-link {
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease;
+}
+
+.map-link:hover {
+    background: var(--accent-soft);
+}
+
+.map-link:active {
+    transform: scale(0.98);
+}
+
+.itinerary-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.itinerary-alerts .alert {
+    font-size: 13px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 10px;
+    padding: 8px 12px;
+}
+
+.day-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.day-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--surface-alt);
+    border-bottom: 1px solid var(--border);
+}
+
+.day-no {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.day-date {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.day-weather {
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.day-cost {
+    margin-left: auto;
+    color: var(--accent);
+    font-weight: 500;
+    font-size: 14px;
+}
+
+.stops {
+    list-style: none;
+    padding: 4px 0;
+}
+
+.stop {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.stop:last-child {
+    border-bottom: none;
+}
+
+.stop-time {
+    min-width: 76px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-secondary);
+    font-size: 13px;
+    padding-top: 2px;
+}
+
+.stop-type {
+    font-size: 15px;
+    padding-top: 1px;
+    line-height: 1.5;
+}
+
+.stop-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.stop-name {
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+.stop-sub {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin-top: 1px;
+}
+
+.stop-note {
+    color: var(--text-tertiary);
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.stop-cost {
+    color: var(--text-secondary);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.itinerary-advice {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+}
+
+.advice-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 8px;
+}
+
+.advice-body ul, .advice-body ol {
+    margin: 4px 0 4px 20px;
+}
+
+.advice-body li {
+    margin: 4px 0;
+}
+
+.advice-body p {
+    margin: 4px 0;
+}
+
+/* 手机：行程卡片自适应 */
+@media (max-width: 480px) {
+    .itinerary {
+        width: 100%;
+    }
+    .itinerary-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+    }
+    .stop {
+        flex-wrap: wrap;
+        gap: 6px 10px;
+    }
+    .stop-time {
+        min-width: 64px;
+    }
+    .stop-body {
+        flex: 1 1 100%;
+        order: 3;
+    }
+    .stop-cost {
+        margin-left: auto;
+    }
+}
+
+/* ============ 会话侧边栏 ============ */
+.app {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+}
+
+.chat-container {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+}
+
+.sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 10px;
+}
+
+.sidebar .new-chat-btn {
+    width: 100%;
+    padding: 10px 14px;
+    text-align: center;
+}
+
+.map-btn {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 14px;
+    text-align: center;
+    transition: border-color .15s ease, color .15s ease;
+}
+
+.map-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.map-btn:active {
+    transform: scale(0.98);
+}
+
+.session-list {
+    flex: 1;
+    overflow-y: auto;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.session-list li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color .15s ease;
+}
+
+.session-list li:hover {
+    background: var(--surface-alt);
+}
+
+.session-list li.active {
+    background: var(--accent-soft);
+}
+
+.session-title {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    color: var(--text);
+}
+
+.session-list li.active .session-title {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+.session-del {
+    border: none;
+    background: transparent;
+    color: var(--text-tertiary);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 6px;
+    opacity: 0;
+    transition: opacity .15s ease, color .15s ease;
+}
+
+.session-list li:hover .session-del {
+    opacity: 1;
+}
+
+.session-del:hover {
+    color: var(--accent);
+}
+
+.session-empty {
+    color: var(--text-tertiary);
+    font-size: 13px;
+    text-align: center;
+    padding: 20px 0;
+    cursor: default;
+}
+
+.menu-btn {
+    display: block;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    font-size: 16px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: border-color .15s ease, color .15s ease;
+}
+
+.menu-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* 桌面端：侧边栏折叠 */
+@media (min-width: 769px) {
+    .sidebar {
+        transition: width .2s ease, padding .2s ease;
+    }
+    .sidebar.collapsed {
+        width: 0;
+        padding: 0;
+        border-right: none;
+        overflow: hidden;
+    }
+}
+
+/* 移动端：侧边栏抽屉 */
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        left: -280px;
+        top: 0;
+        bottom: 0;
+        z-index: 100;
+        transition: left .25s ease;
+        box-shadow: 2px 0 12px rgba(0, 0, 0, .08);
+    }
+    .sidebar.open {
+        left: 0;
+    }
+    .menu-btn {
+        display: block;
+    }
+}
+
+/* ============ 地图视图 ============ */
+.map-view {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    background: var(--bg);
+    position: relative;
+}
+
+.map-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 14px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+}
+
+.back-btn {
+    position: absolute;
+    top: 68px;
+    left: 16px;
+    z-index: 11;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, .18);
+    transition: background-color .15s ease, color .15s ease, transform .1s ease;
+}
+
+.back-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.back-btn:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+}
+
+.back-btn:active {
+    transform: scale(0.94);
+}
+
+.map-title {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.map-canvas {
+    flex: 1;
+    min-height: 0;
+}
+
+.map-error {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding: 40px;
+    text-align: center;
+}
+
+/* 地图标记（彩色圆点） */
+.map-marker {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .3);
+    cursor: pointer;
+}
+
+/* 地图信息窗 */
+.map-info strong {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.map-info .mi-row {
+    font-size: 12px;
+    color: #555;
+    margin: 2px 0;
+}

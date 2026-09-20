@@ -1,0 +1,62 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "旅游 AI 助手 API",
+    "version": "1.0.0",
+    "description": "旅游 AI 助手对话接口，支持天气、地图 POI、路径查询（自动调用工具）"
+  },
+  "servers": [
+    { "url": "http://localhost:8080", "description": "本地" }
+  ],
+  "paths": {
+    "/api/chat": {
+      "post": {
+        "summary": "对话",
+        "description": "旅游助手对话，模型会自动调用天气/地图/搜索工具",
+        "operationId": "chat",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ChatRequest" },
+              "examples": {
+                "天气": { "value": { "message": "北京今天和未来几天的天气怎么样" } },
+                "景点": { "value": { "message": "北京有哪些著名景点，给我列几个" } },
+                "路径": { "value": { "message": "从故宫到长城开车要多久" } },
+                "规划": { "value": { "message": "帮我规划一个北京3天2晚的行程，预算3000元" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ChatResponse" },
+                "example": { "reply": "北京今天晴，18~28℃……" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatRequest": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": { "type": "string", "description": "用户消息", "example": "北京今天天气怎么样" }
+        }
+      },
+      "ChatResponse": {
+        "type": "object",
+        "properties": {
+          "reply": { "type": "string", "description": "助手回复" }
+        }
+      }
+    }
+  }
+}

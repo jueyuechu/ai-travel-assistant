@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: ai-test
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.openai.autoconfigure.OpenAiChatAutoConfiguration
+
+  # Redis 8.8（本地）+ 向量库
+  data:
+    redis:
+      client-type: jedis
+      host: ${REDIS_HOST:192.168.100.128}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:1234}
+
+  ai:
+    # 对话模型：DeepSeek
+    deepseek:
+      api-key: ${DEEPSEEK_API_KEY}          # TODO: 填 key 或设环境变量
+      chat:
+        model: deepseek-v4-flash
+
+    # Embedding：阿里 DashScope（通过 OpenAI 兼容接口，复用 openai starter）
+    openai:
+      api-key: ${DASHSCOPE_API_KEY}          # 用百炼的 key
+      base-url: https://dashscope.aliyuncs.com/compatible-mode/v1
+      chat:
+        enabled: false                       # 禁用 OpenAI 对话，只用 embedding
+      embedding:
+        options:
+          model: qwen3.7-text-embedding
+          # dimensions: 1024                 # 按实际维度设置
+
+    # Redis 向量库（Redis Stack，虚拟机）
+    vectorstore:
+      redis:
+        initialize-schema: true
+        index-name: travel-index
+        prefix: "doc:"
+
+# 自定义工具 key
+amap:
+  api-key: ${AMAP_API_KEY}
+qweather:
+  api-key: ${QWEATHER_API_KEY}
+  api-host: https://na6fr9wd4y.re.qweatherapi.com
+tavily:
+  api-key: ${TAVILY_API_KEY}
+
+# 日志等级
+logging:
+  level:
+    root: INFO
+    com.itjyc: DEBUG                          # 自己的代码（工具/编排/控制器）
+    org.springframework.ai: DEBUG             # Spring AI 框架、工具调用流程
+
+# 观测：健康检查（含 Redis）+ 指标
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
