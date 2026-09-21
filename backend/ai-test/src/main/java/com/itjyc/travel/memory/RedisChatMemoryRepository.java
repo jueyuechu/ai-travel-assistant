@@ -2,6 +2,8 @@ package com.itjyc.travel.memory;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -28,6 +30,7 @@ public class RedisChatMemoryRepository implements ChatMemoryRepository {
 
     private static final String PREFIX = "chat:memory:";
     private static final Duration TTL = Duration.ofDays(7);
+    private static final Logger log = LoggerFactory.getLogger(RedisChatMemoryRepository.class);
 
     private final StringRedisTemplate redis;
     private final ObjectMapper objectMapper;
@@ -47,15 +50,20 @@ public class RedisChatMemoryRepository implements ChatMemoryRepository {
     public List<Message> findByConversationId(String conversationId) {
         try {
             String json = redis.opsForValue().get(PREFIX + conversationId);
-            if (json == null) return List.of();
+            if (json == null) {
+                log.info("[chat-memory] 读 {} -> 空", conversationId);
+                return List.of();
+            }
             JsonNode arr = objectMapper.readTree(json);
             List<Message> messages = new ArrayList<>();
             for (JsonNode node : arr) {
                 Message m = toMessage(node.path("type").asText(""), node.path("text").asText(""));
                 if (m != null) messages.add(m);
             }
+            log.info("[chat-memory] 读 {} -> {} 条", conversationId, messages.size());
             return messages;
         } catch (Exception e) {
+            log.warn("[chat-memory] 读 {} 失败", conversationId, e);
             return List.of();
         }
     }
@@ -70,8 +78,9 @@ public class RedisChatMemoryRepository implements ChatMemoryRepository {
                         "text", m.getText() == null ? "" : m.getText()));
             }
             redis.opsForValue().set(PREFIX + conversationId, objectMapper.writeValueAsString(list), TTL);
-        } catch (Exception ignored) {
-            // 记忆持久化失败不影响对话
+            log.info("[chat-memory] 写 {} -> {} 条", conversationId, list.size());
+        } catch (Exception e) {
+            log.warn("[chat-memory] 写 {} 失败", conversationId, e);
         }
     }
 

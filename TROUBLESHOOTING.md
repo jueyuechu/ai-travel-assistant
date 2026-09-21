@@ -501,6 +501,20 @@ SyncMcpElicitationProvider : No elicitation methods found
 
 ---
 
+## 23. 意图路由导致记忆分裂(跨意图上下文丢失)
+
+**现象**:用户先说「我想去北京」,再说「帮我规划一下」,规划却追问「目的地」,好像忘了上一句。
+
+**根因**:意图路由把「我想去北京」判为 QA(走 `qaChatClient`,写主会话记忆),「帮我规划」判为 PLAN(走 `planningChatClient`)。而 `planningChatClient` 是**无记忆**的(之前为修 conversationId 报错 + 避免内部 JSON 污染主会话),所以规划读不到 QA 场景存下的「北京」。
+
+**解决**:规划抽取需求时**只读**主会话 ChatMemory 历史,拼进抽取 prompt;不写记忆(`planningChatClient` 仍无 advisor)。
+
+**经验**:
+- 按意图拆分 ChatClient 时,注意**跨意图的上下文连续性**:规划/问答/实况虽工具集不同,但用户的上下文是连续的。
+- 规划内部调用要「只读不写」主会话记忆——读历史拿上下文(如目的地),但不写内部 JSON,避免污染。
+
+---
+
 ## 通用经验总结
 
 1. **Spring Boot 4 的两大坑**:Jackson 3(包名变了)+ 基本类型 null 报错,写数据接收/结构化输出时先想到这两点。

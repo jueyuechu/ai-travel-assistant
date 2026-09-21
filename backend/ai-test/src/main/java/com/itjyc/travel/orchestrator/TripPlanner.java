@@ -9,6 +9,9 @@ import com.itjyc.travel.tool.MapTool;
 import com.itjyc.travel.tool.WeatherTool;
 import com.itjyc.travel.util.DateUtil;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.ChatMemory;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.MessageType;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -44,10 +47,12 @@ public class TripPlanner {
             根据用户的旅行需求，规划一份合理、可执行的行程。
             直接基于你的知识生成行程，不要调用任何工具。
             每个景点（stop）的 type 字段必须是以下英文之一：attraction（景点）、food（餐饮）、hotel（酒店）、transport（交通），不要用中文。
+            每天（day）字段从 1 开始连续递增，不要跳号。
             最终输出必须是符合要求的 JSON，不要用 markdown 代码块包裹。
             """;
 
     private final ChatClient planningChatClient;
+    private final ChatMemory chatMemory;
     private final MapTool mapTool;
     private final WeatherTool weatherTool;
     private final ObjectMapper objectMapper;
@@ -73,11 +78,12 @@ public class TripPlanner {
     /** 校验用的相邻点对：day → from 景点 → to 景点。day 用包装类型，避免 LLM 漏字段时拆箱 NPE。 */
     private record RoutePair(Integer day, String from, String to, String city) {}
 
-    public TripPlanner(@Qualifier("planningChatClient") ChatClient planningChatClient, MapTool mapTool, WeatherTool weatherTool, ObjectMapper objectMapper,
+    public TripPlanner(@Qualifier("planningChatClient") ChatClient planningChatClient, ChatMemory chatMemory, MapTool mapTool, WeatherTool weatherTool, ObjectMapper objectMapper,
                        @Value("${trip.pending-ttl-min:30}") long pendingTtlMin,
                        @Value("${trip.route-threshold-min:90}") int routeThresholdMin,
                        @Value("${trip.amap-pool-size:8}") int amapPoolSize) {
         this.planningChatClient = planningChatClient;
+        this.chatMemory = chatMemory;
         this.mapTool = mapTool;
         this.weatherTool = weatherTool;
         this.objectMapper = objectMapper;
@@ -107,7 +113,7 @@ public class TripPlanner {
         // 清理超时未完成的需求（默认 30 分钟视为放弃）
         pending.entrySet().removeIf(e -> now - e.getValue().ts() > pendingTtlMs);
 
-        TripRequest extracted = extractRequest(message);
+        TripRequest extracted = extractRequest(message, conversationId);
         PendingEntry existing = pending.get(conversationId);
 
         // 抽取失败（LLM 返回非法 JSON / 网络抖动）：不打断，保留已有累积继续追问
@@ -129,11 +135,26 @@ public class TripPlanner {
         return PlanResult.done(itinerary);
     }
 
-    /** ② 从用户输入抽取旅行需求。 */
-    private TripRequest extractRequest(String message) {
+    /** ② 从用户输入抽取旅行需求。读主会话历史作为上下文（目的地可能在上一句），但不写记忆避免污染。 */
+    private TripRequest extractRequest(String message, String conversationId) {
         try {
+            StringBuilder system = new StringBuilder(
+                    "你是旅行需求分析助手。从用户的话里抽取目的地、天数、人数、预算、偏好、节奏等字段。直接输出 JSON，不要用 markdown 代码块。\n今天是 "
+                            + DateUtil.today() + "。");
+
+            // 读主会话历史（前几轮用户说的，如「我想去北京」），让抽取能拿到上下文
+            List<Message> history = chatMemory.get(conversationId);
+            if (history != null && !history.isEmpty()) {
+                system.append("\n\n以下是之前的对话历史，目的地等关键信息可能在历史里，请结合抽取：\n");
+                for (Message m : history) {
+                    if (m == null || m.getText() == null || m.getText().isBlank()) continue;
+                    String role = m.getMessageType() == MessageType.USER ? "用户" : "助手";
+                    system.append(role).append("：").append(m.getText()).append("\n");
+                }
+            }
+
             return planningChatClient.prompt()
-                    .system("你是旅行需求分析助手。从用户的话里抽取目的地、天数、人数、预算、偏好、节奏等字段。直接输出 JSON，不要用 markdown 代码块。\n今天是 " + DateUtil.today() + "。")
+                    .system(system.toString())
                     .user(message)
                     .call()
                     .entity(TripRequest.class);
@@ -246,7 +267,7 @@ public class TripPlanner {
             if (day == null) continue;
             WeatherTool.WeatherDay wd = matchWeather(day.date(), weather, i);
             String weatherText = wd == null ? day.weather() : formatWeather(wd);
-            newDays.add(new Itinerary.DayPlan(day.day(), day.date(), weatherText, day.stops(), day.dayCost()));
+            newDays.add(new Itinerary.DayPlan(newDays.size() + 1, day.date(), weatherText, day.stops(), day.dayCost()));
         }
         return new Itinerary(itinerary.destination(), newDays, itinerary.totalCost(), itinerary.alerts());
     }
@@ -286,7 +307,7 @@ public class TripPlanner {
         for (Itinerary.DayPlan day : itinerary.days()) {
             if (day == null) continue;
             if (day.stops() == null) {
-                newDays.add(day);
+                newDays.add(new Itinerary.DayPlan(newDays.size() + 1, day.date(), day.weather(), null, day.dayCost()));
                 continue;
             }
             List<Itinerary.Stop> newStops = new ArrayList<>(day.stops().size());
@@ -302,7 +323,7 @@ public class TripPlanner {
                 }
                 newStops.add(enriched);
             }
-            newDays.add(new Itinerary.DayPlan(day.day(), day.date(), day.weather(), newStops, day.dayCost()));
+            newDays.add(new Itinerary.DayPlan(newDays.size() + 1, day.date(), day.weather(), newStops, day.dayCost()));
         }
         return new Itinerary(itinerary.destination(), newDays, itinerary.totalCost(), itinerary.alerts());
     }
